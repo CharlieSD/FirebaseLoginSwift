@@ -7,16 +7,53 @@
 //
 
 import UIKit
+import Firebase
+import GoogleSignIn
+
+let primaryColor = UIColor(red: 210/255, green: 109/255, blue: 180/255, alpha: 1)
+let secondaryColor = UIColor(red: 52/255, green: 148/255, blue: 230/255, alpha: 1)
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, GIDSignInDelegate {
 
     var window: UIWindow?
 
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        FirebaseApp.configure()
+        
+        GIDSignIn.sharedInstance().clientID = FirebaseApp.app()?.options.clientID
+        GIDSignIn.sharedInstance().delegate = self
         return true
+    }
+    
+    func sign(_ signIn: GIDSignIn!, didSignInFor user: GIDGoogleUser!, withError error: Error?) {
+        if let err = error {
+            print("Failed to log into Google", err)
+            return
+        }
+        
+        print("Successfully logged into Google", user)
+        
+        guard let idToken = user.authentication.idToken else {return}
+        guard let accessToken = user.authentication.accessToken else {return}
+        
+        let credentials = GoogleAuthProvider.credential(withIDToken: idToken,
+                                                        accessToken: accessToken)
+        Auth.auth().signInAndRetrieveData(with: credentials, completion: {(user, error) in
+            if let err = error {
+                print("Failed to create a Firebase user with Google account: ", err)
+                return
+            }
+        })
+    }
+    
+    @available(iOS 9.0, *)
+    func application(_ application: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey : Any])
+        -> Bool {
+            return GIDSignIn.sharedInstance().handle(url,
+                sourceApplication:options[UIApplicationOpenURLOptionsKey.sourceApplication] as? String,
+                annotation: [:])
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -40,7 +77,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillTerminate(_ application: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
-
 
 }
 
